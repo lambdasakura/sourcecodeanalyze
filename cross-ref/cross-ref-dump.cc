@@ -52,7 +52,6 @@
 
 #include "clang/Parse/ParseAST.h"
 
-#include "my-ast-consumer.h"
 #include "ast-unit.h"
 
 int main()
@@ -153,7 +152,7 @@ int main()
                                                                                 builtinContext,
                                                                                 0 ));
   
-  MyASTConsumer astConsumer;
+  clang::ASTConsumer astConsumer;
 
   clang::Sema sema(
       *pp,
@@ -161,43 +160,11 @@ int main()
       astConsumer);
   sema.Initialize();
   clang::ParseAST(*pp, &astConsumer, *astContext);
-  
-  clang::idx::DeclReferenceMap declRefMap(*astContext);
-  clang::idx::SelectorMap selMap(*astContext);
-
-  // DiagnosticsEngine Initialize
-  clang::DiagnosticOptions diagOpts2;
-  clang::TextDiagnosticPrinter diagPrinter2(llvm::outs(), diagOpts);
-  diagPrinter.BeginSourceFile(langOpts, NULL);
-
-  llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>
-      diagIds2(new clang::DiagnosticIDs());
-  clang::DiagnosticsEngine* diagEngine2 = new clang::DiagnosticsEngine(diagIds2, &diagPrinter2, false);
-  clang::Diagnostic diag2(diagEngine2);
-
-  // Preprocessor Initialize
-  clang::CompilerInstance compiler2;
-  llvm::IntrusiveRefCntPtr<clang::Preprocessor> pp2(new clang::Preprocessor(*diagEngine2,
-                                                                           langOpts,
-                                                                           targetInfo,
-                                                                           srcMgr,
-                                                                           headerSearch,
-                                                                           compiler));
-  clang::PreprocessorOptions ppOpts2;
-  clang::FrontendOptions frontendOpts2;
-  clang::InitializePreprocessor(*pp2,
-                                ppOpts2,
-                                headerSearchOpts,
-                                frontendOpts);
-
-
-  // ASTUnitTU* astUnitTU = new ASTUnitTU(astContext,
-  //                                      pp2,
-  //                                      diagEngine2
-  //                                      // declRefMap,
-  //                                      // selMap
-  //                                      );
-  //Idxer.IndexAST(astUnitTU);
+  sema.Initialize();
+  ASTUnitTU* astUnitTU = new ASTUnitTU(astContext,
+                                       pp,
+                                       diagEngine);
+  Idxer.IndexAST(astUnitTU);
   // clang::idx::Entity Ent = 
   //     clang::idx::Entity::get("func", Idxer.getProgram());
   // std::cout << Ent.getPrintableName() << std::endl;

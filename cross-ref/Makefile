@@ -7,7 +7,7 @@ CXXFLAGS=-I$(LLVMHOME)/tools/clang/include \
 # clangParse required starting from tut04
 # clangAST and clangSema required starting from tut06
 # clangRewrite required in tut09
-LDFLAGS= `$(LLVMCONFIG) --ldflags`
+LDFLAGS= `$(LLVMCONFIG) --ldflags --libs`
 LIBS= -lclangAnalysis \
       -lclangStaticAnalyzerCore \
       -lclangARCMigrate \
@@ -36,14 +36,14 @@ LIBS= -lclangAnalysis \
       -lLLVMBitWriter -lLLVMBitReader -lLLVMCodeGen -lLLVMAnalysis \
       -lLLVMTarget
 
-all: cross-ref-dumper
+all: cross-ref-dump
 
 clean:
-	rm -rf cross-ref-dumper cross-ref-dumper.o
+	rm -rf cross-ref-dump cross-ref-dump.o
 
-cross-ref-dumper: cross-ref-dumper.o
-	g++ $(LDFLAGS) -o cross-ref-dumper cross-ref-dumper.o $(LIBS)
+cross-ref-dump: cross-ref-dump.o
+	g++ $(LDFLAGS) -o cross-ref-dump cross-ref-dump.o $(LIBS)
 
 
-cross-ref-dumper.o: cross-ref-dumper.cc
+cross-ref-dump.o: cross-ref-dump.cc
 
