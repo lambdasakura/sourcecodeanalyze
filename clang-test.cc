@@ -163,7 +163,7 @@ int main()
   langOpts.NeXTRuntime = false;
   langOpts.NoBuiltin  = true;
 
-  // Diagnostic をセットアップする。
+  // DiagnosticsEngine Initialize
   clang::DiagnosticOptions diagOpts;
   clang::TextDiagnosticPrinter diagPrinter(llvm::outs(), diagOpts);
   diagPrinter.BeginSourceFile(langOpts, NULL);
@@ -173,22 +173,22 @@ int main()
   clang::DiagnosticsEngine diagEngine(diagIds, &diagPrinter, false);
   clang::Diagnostic diag(&diagEngine);
 
-  // 動作環境オプションをセットアップする。
+  // Triple Initialize
   llvm::Triple triple;
   triple.setArch(llvm::Triple::x86);
   triple.setVendor(llvm::Triple::PC);
-  triple.setOS(llvm::Triple::Win32);
+  triple.setOS(llvm::Triple::Linux);
   clang::TargetOptions targetOpts;
   targetOpts.Triple = triple.getTriple();
   clang::TargetInfo* targetInfo
       = clang::TargetInfo::CreateTargetInfo(diagEngine, targetOpts);
 
-  // ソースファイル管理をセットアップする。
+  // SourceManager Initialize
   clang::FileSystemOptions fileSysOpts;
   clang::FileManager fileMgr(fileSysOpts);
   clang::SourceManager srcMgr(diagEngine, fileMgr);
 
-  // ヘッダ検索をセットアップする。
+  // HeaderSearch Initialize
   clang::HeaderSearch headerSearch(fileMgr);
   clang::HeaderSearchOptions headerSearchOpts;
   headerSearchOpts.UseLibcxx = 1;
@@ -208,7 +208,7 @@ int main()
                                   triple);
 
 
-  // プリプロセッサをセットアップする。
+  // Preprocessor Initialize
   clang::CompilerInstance compiler;
   clang::Preprocessor pp(diagEngine,
                          langOpts,
@@ -224,16 +224,15 @@ int main()
                                 frontendOpts);
 
 
-  // ファイルを指定
+  // choose target file
   const clang::FileEntry *pFile = fileMgr.getFile("./hello.cc");
   srcMgr.createMainFileID(pFile);
-  //pp.EnterMainSourceFile();
-
   clang::IdentifierTable identifierTable(langOpts);
   clang::SelectorTable selectorTable;
-
   clang::Builtin::Context builtinContext;
   builtinContext.InitializeTarget(*targetInfo);
+  
+  // generate ASTContext
   clang::ASTContext astContext(
       langOpts,
       srcMgr,
@@ -242,6 +241,7 @@ int main()
       selectorTable,
       builtinContext,
       0 );
+
   MyASTConsumer astConsumer;
 
   clang::Sema sema(
@@ -249,11 +249,10 @@ int main()
       astContext,
       astConsumer);
   sema.Initialize();
+  clang::ParseAST(pp, &astConsumer, astContext);
 
   clang::idx::DeclReferenceMap declRefMap(astContext);
   clang::idx::SelectorMap selMap(astContext);
-
-  //clang::ParseAST(pp, &astConsumer, astContext);
 
   clang::ASTContext astContext2(
       langOpts,
@@ -263,17 +262,15 @@ int main()
       selectorTable,
       builtinContext,
       0 );
-  ASTUnitTU* test = new ASTUnitTU(&astContext2,
-                                  &pp,
-                                  astContext.getDiagnostics(),
-                                  declRefMap,
-                                  selMap
-                                  );
-  test->getSelectorMap();
-  test->getASTContext();
-  Idxer.IndexAST(test);
+  ASTUnitTU* astUnitTU = new ASTUnitTU(&astContext2,
+                                       &pp,
+                                       astContext.getDiagnostics(),
+                                       declRefMap,
+                                       selMap
+                                       );
+  Idxer.IndexAST(astUnitTU);
   clang::idx::Entity Ent = 
-      clang::idx::Entity::get("a", Prog);
+      clang::idx::Entity::get("func", Idxer.getProgram());
   std::cout << Ent.getPrintableName() << std::endl;
 
   clang::FunctionDecl *FD;
