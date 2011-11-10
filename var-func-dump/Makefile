@@ -36,16 +36,13 @@ LIBS= -lclangAnalysis \
       -lLLVMBitWriter -lLLVMBitReader -lLLVMCodeGen -lLLVMAnalysis \
       -lLLVMTarget
 
-all: clang-test
+all: var-func-dumper
 
 clean:
-	rm -rf clang-test clang-test.o
+	rm -rf var-func-dumper var-func-dumper.o
 
 var-func-dumper: var-func-dumper.o
 	g++ $(LDFLAGS) -o var-func-dumper var-func-dumper.o $(LIBS)
 
-clang-test: clang-test.o
-	g++ $(LDFLAGS) -o clang-test clang-test.o $(LIBS)
 
 var-func-dumper.o: var-func-dumper.cc
-clang-test.o: clang-test.cc
