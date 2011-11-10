@@ -9,9 +9,9 @@ void func() {
  i = 0;
 }
 
-int main() {
-  int c ;
-  c = 10;
-  a = 0;
-  func();
-}
+// int main() {
+//   int c ;
+//   c = 10;
+//   a = 0;
+//   func();
+// }

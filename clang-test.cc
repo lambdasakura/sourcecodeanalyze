@@ -52,96 +52,8 @@
 
 #include "clang/Parse/ParseAST.h"
 
-class MyASTConsumer : public clang::ASTConsumer
-{
- public:
-  MyASTConsumer() : clang::ASTConsumer() { }
-  virtual ~MyASTConsumer() { }
-  
-  virtual void HandleTranslationUnit(clang::ASTContext &Ctx) {
-
-  }
-
-  virtual void HandleTopLevelDecl( clang::DeclGroupRef d)
-  {
-    static int count = 0;
-    
-    clang::DeclGroupRef::iterator it;
-    for( it = d.begin(); it != d.end(); it++)
-    {
-      
-      std::cout << (*it)->getKind() <<std::endl;
-      count++;
-      clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(*it);
-      if(vd)
-      {
-        //std::cout << vd << std::endl;
-        if( vd->isFileVarDecl() /*&& vd->hasExternalStorage()*/ )
-        {
-          std::cerr << "Read top-level variable decl: '";
-          std::cerr << vd->getDeclName().getAsString() ;
-          std::cerr << std::endl;
-        }
-      }
-      
-      clang::FunctionDecl *fd = 
-          llvm::dyn_cast<clang::FunctionDecl>(*it);
-      if(!fd)
-      {
-        continue;
-      }
-      //std::cout << fd << std::endl;
-      std::cerr << "Function decl: '";
-      std::cerr << fd->getDeclName().getAsString() ;
-      std::cerr << std::endl;
-    }
-  }
-};
-
-class ASTUnitTU : public clang::idx::TranslationUnit {
-  clang::ASTContext* astContext;
-  clang::Preprocessor* pp;
-  clang::DiagnosticsEngine diagnostic;
-  clang::idx::DeclReferenceMap DeclRefMap;
-  clang::idx::SelectorMap SelMap;
-
- public:
-  ASTUnitTU(clang::ASTContext* _astContext,
-            clang::Preprocessor* _pp,
-            clang::DiagnosticsEngine _diagnostic,
-            clang::idx::DeclReferenceMap declRefMap,
-            clang::idx::SelectorMap selMap
-            )
-      :
-      astContext(_astContext),
-      pp(_pp),
-      diagnostic(_diagnostic),
-      DeclRefMap(declRefMap),
-      SelMap(selMap)
-  {};
-
-  virtual clang::ASTContext &getASTContext() {
-    return *astContext;
-  }
-
-  virtual clang::Preprocessor &getPreprocessor() {
-    return *pp;
-  }
-
-  virtual clang::DiagnosticsEngine &getDiagnostic() {
-    return diagnostic;
-  }
-
-  virtual clang::idx::DeclReferenceMap &getDeclReferenceMap() {
-    return DeclRefMap;
-  }
-
-  virtual clang::idx::SelectorMap &getSelectorMap() {
-    return SelMap;
-  }
-};
-
-
+#include "my-ast-consumer.h"
+#include "ast-unit.h"
 
 int main()
 {
@@ -170,8 +82,8 @@ int main()
 
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>
       diagIds(new clang::DiagnosticIDs());
-  clang::DiagnosticsEngine diagEngine(diagIds, &diagPrinter, false);
-  clang::Diagnostic diag(&diagEngine);
+  clang::DiagnosticsEngine* diagEngine = new clang::DiagnosticsEngine(diagIds, &diagPrinter, false);
+  clang::Diagnostic diag(diagEngine);
 
   // Triple Initialize
   llvm::Triple triple;
@@ -181,12 +93,12 @@ int main()
   clang::TargetOptions targetOpts;
   targetOpts.Triple = triple.getTriple();
   clang::TargetInfo* targetInfo
-      = clang::TargetInfo::CreateTargetInfo(diagEngine, targetOpts);
+      = clang::TargetInfo::CreateTargetInfo(*diagEngine, targetOpts);
 
   // SourceManager Initialize
   clang::FileSystemOptions fileSysOpts;
   clang::FileManager fileMgr(fileSysOpts);
-  clang::SourceManager srcMgr(diagEngine, fileMgr);
+  clang::SourceManager srcMgr(*diagEngine, fileMgr);
 
   // HeaderSearch Initialize
   clang::HeaderSearch headerSearch(fileMgr);
@@ -210,15 +122,15 @@ int main()
 
   // Preprocessor Initialize
   clang::CompilerInstance compiler;
-  clang::Preprocessor pp(diagEngine,
-                         langOpts,
-                         targetInfo,
-                         srcMgr,
-                         headerSearch,
-                         compiler);
+  llvm::IntrusiveRefCntPtr<clang::Preprocessor> pp(new clang::Preprocessor(*diagEngine,
+                                                                           langOpts,
+                                                                           targetInfo,
+                                                                           srcMgr,
+                                                                           headerSearch,
+                                                                           compiler));
   clang::PreprocessorOptions ppOpts;
   clang::FrontendOptions frontendOpts;
-  clang::InitializePreprocessor(pp,
+  clang::InitializePreprocessor(*pp,
                                 ppOpts,
                                 headerSearchOpts,
                                 frontendOpts);
@@ -233,54 +145,71 @@ int main()
   builtinContext.InitializeTarget(*targetInfo);
   
   // generate ASTContext
-  clang::ASTContext astContext(
-      langOpts,
-      srcMgr,
-      targetInfo,
-      identifierTable,
-      selectorTable,
-      builtinContext,
-      0 );
-
+  llvm::IntrusiveRefCntPtr<clang::ASTContext>  astContext(new clang::ASTContext(langOpts,
+                                                                                srcMgr,
+                                                                                targetInfo,
+                                                                                identifierTable,
+                                                                                selectorTable,
+                                                                                builtinContext,
+                                                                                0 ));
+  
   MyASTConsumer astConsumer;
 
   clang::Sema sema(
-      pp,
-      astContext,
+      *pp,
+      *astContext,
       astConsumer);
   sema.Initialize();
-  clang::ParseAST(pp, &astConsumer, astContext);
+  clang::ParseAST(*pp, &astConsumer, *astContext);
+  
+  clang::idx::DeclReferenceMap declRefMap(*astContext);
+  clang::idx::SelectorMap selMap(*astContext);
 
-  clang::idx::DeclReferenceMap declRefMap(astContext);
-  clang::idx::SelectorMap selMap(astContext);
+  // DiagnosticsEngine Initialize
+  clang::DiagnosticOptions diagOpts2;
+  clang::TextDiagnosticPrinter diagPrinter2(llvm::outs(), diagOpts);
+  diagPrinter.BeginSourceFile(langOpts, NULL);
 
-  clang::ASTContext astContext2(
-      langOpts,
-      srcMgr,
-      targetInfo,
-      identifierTable,
-      selectorTable,
-      builtinContext,
-      0 );
-  ASTUnitTU* astUnitTU = new ASTUnitTU(&astContext2,
-                                       &pp,
-                                       astContext.getDiagnostics(),
-                                       declRefMap,
-                                       selMap
-                                       );
-  Idxer.IndexAST(astUnitTU);
-  clang::idx::Entity Ent = 
-      clang::idx::Entity::get("func", Idxer.getProgram());
-  std::cout << Ent.getPrintableName() << std::endl;
+  llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>
+      diagIds2(new clang::DiagnosticIDs());
+  clang::DiagnosticsEngine* diagEngine2 = new clang::DiagnosticsEngine(diagIds2, &diagPrinter2, false);
+  clang::Diagnostic diag2(diagEngine2);
 
-  clang::FunctionDecl *FD;
-  clang::idx::TranslationUnit *TU;
-  llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
+  // Preprocessor Initialize
+  clang::CompilerInstance compiler2;
+  llvm::IntrusiveRefCntPtr<clang::Preprocessor> pp2(new clang::Preprocessor(*diagEngine2,
+                                                                           langOpts,
+                                                                           targetInfo,
+                                                                           srcMgr,
+                                                                           headerSearch,
+                                                                           compiler));
+  clang::PreprocessorOptions ppOpts2;
+  clang::FrontendOptions frontendOpts2;
+  clang::InitializePreprocessor(*pp2,
+                                ppOpts2,
+                                headerSearchOpts,
+                                frontendOpts);
 
-  if (!FD) {
-    std::cout << "not found" << std::endl;
-    return 0;
-  }
+
+  // ASTUnitTU* astUnitTU = new ASTUnitTU(astContext,
+  //                                      pp2,
+  //                                      diagEngine2
+  //                                      // declRefMap,
+  //                                      // selMap
+  //                                      );
+  //Idxer.IndexAST(astUnitTU);
+  // clang::idx::Entity Ent = 
+  //     clang::idx::Entity::get("func", Idxer.getProgram());
+  // std::cout << Ent.getPrintableName() << std::endl;
+
+  // clang::FunctionDecl *FD;
+  // clang::idx::TranslationUnit *TU;
+  // llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
+
+  // if (!FD) {
+  //   std::cout << "not found" << std::endl;
+  //   return 0;
+  // }
 
 
   return 0;
