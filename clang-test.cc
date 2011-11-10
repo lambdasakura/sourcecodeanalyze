@@ -111,8 +111,6 @@ int main()
   clang::LangOptions langOpts;
   langOpts.BCPLComment = true;
   langOpts.Bool   = true;
-  // langOpts.MicrosoftExt = true;
-  // langOpts.MicrosoftMode = true;
   langOpts.CPlusPlus  = true;
   langOpts.CPlusPlus0x = true;
   langOpts.Exceptions  = true;
@@ -120,7 +118,6 @@ int main()
   langOpts.MSBitfields = true;
   langOpts.NeXTRuntime = false;
   langOpts.NoBuiltin  = true;
-  //langOpts.MSCVersion  = _MSC_VER;
 
   // Diagnostic をセットアップする。
   clang::DiagnosticOptions diagOpts;
@@ -200,8 +197,7 @@ int main()
       identifierTable,
       selectorTable,
       builtinContext,
-      0 /* size_reserve*/);
-  // clang::ASTConsumer astConsumer;
+      0 );
   MyASTConsumer astConsumer;
 
   clang::Sema sema(
@@ -210,30 +206,8 @@ int main()
       astConsumer);
   sema.Initialize();
 
-  //MySemanticAnalisys mySema( pp, astContext, astConsumer);
 
-  //clang::Parser parser( pp, sema);
-  //parser.ParseTranslationUnit();
   clang::ParseAST(pp, &astConsumer, astContext);
-
-  // clang::ASTContext::const_type_iterator t = astContext.types_begin();
-  // clang::ASTContext::const_type_iterator eot = astContext.types_end();
-  // for(; t != eot; ++t)
-  // {
-  //   clang::CXXRecordDecl* pDecl = (*t)->getAsCXXRecordDecl();
-  //   if( (pDecl != NULL) && pDecl->isClass() )
-  //   {
-  //     if(pDecl->hasDefinition())
-  //     {
-  //       clang::CXXRecordDecl::base_class_iterator base = pDecl->bases_begin();
-  //       clang::CXXRecordDecl::base_class_iterator eobase = pDecl->bases_end();
-  //       for(; base != eobase; ++base)
-  //       {
-  //         base->getType().dump();
-  //       }
-  //     }
-  //   }
-  // }
 
   return 0;
 }
