@@ -47,7 +47,7 @@
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/ASTContext.h"
 
-
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/Parse/Parser.h"
 
 #include "clang/Parse/ParseAST.h"
@@ -59,7 +59,6 @@ class MyASTConsumer : public clang::ASTConsumer
   virtual ~MyASTConsumer() { }
   
   virtual void HandleTranslationUnit(clang::ASTContext &Ctx) {
-    
 
   }
 
@@ -98,6 +97,51 @@ class MyASTConsumer : public clang::ASTConsumer
     }
   }
 };
+
+class ASTUnitTU : public clang::idx::TranslationUnit {
+  clang::ASTContext* astContext;
+  clang::Preprocessor* pp;
+  clang::DiagnosticsEngine diagnostic;
+  clang::idx::DeclReferenceMap DeclRefMap;
+  clang::idx::SelectorMap SelMap;
+
+ public:
+  ASTUnitTU(clang::ASTContext* _astContext,
+            clang::Preprocessor* _pp,
+            clang::DiagnosticsEngine _diagnostic,
+            clang::idx::DeclReferenceMap declRefMap,
+            clang::idx::SelectorMap selMap
+            )
+      :
+      astContext(_astContext),
+      pp(_pp),
+      diagnostic(_diagnostic),
+      DeclRefMap(declRefMap),
+      SelMap(selMap)
+  {};
+
+  virtual clang::ASTContext &getASTContext() {
+    return *astContext;
+  }
+
+  virtual clang::Preprocessor &getPreprocessor() {
+    return *pp;
+  }
+
+  virtual clang::DiagnosticsEngine &getDiagnostic() {
+    return diagnostic;
+  }
+
+  virtual clang::idx::DeclReferenceMap &getDeclReferenceMap() {
+    return DeclRefMap;
+  }
+
+  virtual clang::idx::SelectorMap &getSelectorMap() {
+    return SelMap;
+  }
+};
+
+
 
 int main()
 {
@@ -206,8 +250,41 @@ int main()
       astConsumer);
   sema.Initialize();
 
+  clang::idx::DeclReferenceMap declRefMap(astContext);
+  clang::idx::SelectorMap selMap(astContext);
 
-  clang::ParseAST(pp, &astConsumer, astContext);
+  //clang::ParseAST(pp, &astConsumer, astContext);
+
+  clang::ASTContext astContext2(
+      langOpts,
+      srcMgr,
+      targetInfo,
+      identifierTable,
+      selectorTable,
+      builtinContext,
+      0 );
+  ASTUnitTU* test = new ASTUnitTU(&astContext2,
+                                  &pp,
+                                  astContext.getDiagnostics(),
+                                  declRefMap,
+                                  selMap
+                                  );
+  test->getSelectorMap();
+  test->getASTContext();
+  Idxer.IndexAST(test);
+  clang::idx::Entity Ent = 
+      clang::idx::Entity::get("a", Prog);
+  std::cout << Ent.getPrintableName() << std::endl;
+
+  clang::FunctionDecl *FD;
+  clang::idx::TranslationUnit *TU;
+  llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
+
+  if (!FD) {
+    std::cout << "not found" << std::endl;
+    return 0;
+  }
+
 
   return 0;
 }
