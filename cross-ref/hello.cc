@@ -1,3 +1,4 @@
+//#include <stdio.h>
 //extern int c;
 static int d = 10;
 
@@ -7,11 +8,12 @@ int b[] = {1,2,3};
 void func() {
  int i;
  i = 0;
+ printf("hello,world");
 }
 
-// int main() {
-//   int c ;
-//   c = 10;
-//   a = 0;
-//   func();
-// }
+int main() {
+  int c ;
+  c = 10;
+  a = 0;
+  func();
+}

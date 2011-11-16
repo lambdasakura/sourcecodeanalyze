@@ -93,7 +93,7 @@
 #include "clang/StaticAnalyzer/Frontend/CheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
+//#include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
 
@@ -111,190 +111,191 @@
 
 
 class ASTUnitTU : public clang::idx::TranslationUnit {
-	clang::ASTUnit *AST;
-	clang::idx::DeclReferenceMap DeclRefMap;
-	clang::idx::SelectorMap SelMap;
+  clang::ASTUnit *AST;
+  clang::idx::DeclReferenceMap DeclRefMap;
+  clang::idx::SelectorMap SelMap;
 
-public:
-	ASTUnitTU(clang::ASTUnit *ast) 
-		: AST(ast), DeclRefMap(AST->getASTContext()), SelMap(AST->getASTContext()) {
-	}
+ public:
+  ASTUnitTU(clang::ASTUnit *ast) 
+      : AST(ast), DeclRefMap(AST->getASTContext()), SelMap(AST->getASTContext()) {
+  }
 
-	virtual clang::ASTContext &getASTContext() {
-		return AST->getASTContext();
-	}
+  virtual clang::ASTContext &getASTContext() {
+    return AST->getASTContext();
+  }
 
-	virtual clang::Preprocessor &getPreprocessor() {
-		return AST->getPreprocessor();
-	}
+  virtual clang::Preprocessor &getPreprocessor() {
+    return AST->getPreprocessor();
+  }
 
-	virtual clang::Diagnostic &getDiagnostic() {
-		return AST->getDiagnostics();
-	}
+  virtual clang::DiagnosticsEngine &getDiagnostic() {
+    return AST->getDiagnostics();
+  }
 
-	virtual clang::DeclReferenceMap &getDeclReferenceMap() {
-		return DeclRefMap;
-	}
+  virtual clang::DeclReferenceMap &getDeclReferenceMap() {
+    return DeclRefMap;
+  }
 
-	virtual clang::SelectorMap &getSelectorMap() {
-		return SelMap;
-	}
+  virtual clang::SelectorMap &getSelectorMap() {
+    return SelMap;
+  }
 };
 
 
 class MyASTConsumer : public clang::ASTConsumer
 {
-public:
-	MyASTConsumer() : clang::ASTConsumer() { }
-	virtual ~MyASTConsumer() { }
+ public:
+  MyASTConsumer() : clang::ASTConsumer() { }
+  virtual ~MyASTConsumer() { }
 
-	virtual void HandleTopLevelDecl( clang::DeclGroupRef d)
-	{
-		static int count = 0;
-		clang::DeclGroupRef::iterator it;
-		for( it = d.begin(); it != d.end(); it++)
-		{
-			count++;
-			clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(*it);
-			if(!vd)
-			{
-				continue;
-			}
-			std::cout << vd << std::endl;
-			if( vd->isFileVarDecl() /*&& vd->hasExternalStorage()*/ )
-			{
-				std::cerr << "Read top-level variable decl: '";
-				std::cerr << vd->getDeclName().getAsString() ;
-				std::cerr << std::endl;
-			}
-		}
-	}
+  virtual void HandleTopLevelDecl( clang::DeclGroupRef d)
+  {
+    static int count = 0;
+    clang::DeclGroupRef::iterator it;
+    for( it = d.begin(); it != d.end(); it++)
+    {
+      count++;
+      clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(*it);
+      if(!vd)
+      {
+        continue;
+      }
+      std::cout << vd << std::endl;
+      if( vd->isFileVarDecl() /*&& vd->hasExternalStorage()*/ )
+      {
+        std::cerr << "Read top-level variable decl: '";
+        std::cerr << vd->getDeclName().getAsString() ;
+        std::cerr << std::endl;
+      }
+    }
+  }
 };
 
 
 class Handler : public clang::idx::TULocationHandler {
-public:
-	Handler(clang::SourceManager* _sourceManager) {
-		this->sourceManager = _sourceManager;
-	}
-private:
-	clang::SourceManager* sourceManager;
-	void Handle(clang::TULocation TULoc)  {
-		auto a = TULoc.dyn_AsStmt();
-		auto hogehoge = TULoc.getParentDecl();
-		std::cout << hogehoge->getDeclKindName();
-		clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(hogehoge);
-		if(fd) {
-			a->dump();
+ public:
+  Handler(clang::SourceManager* _sourceManager) {
+    this->sourceManager = _sourceManager;
+  }
+ private:
+  clang::SourceManager* sourceManager;
+  void Handle(clang::TULocation TULoc)  {
+    auto a = TULoc.dyn_AsStmt();
+    auto hogehoge = TULoc.getParentDecl();
+    std::cout << hogehoge->getDeclKindName();
+    clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(hogehoge);
+    if(fd) {
+      a->dump();
 			
-			auto hoge = this->sourceManager->getSpellingLineNumber(TULoc.getSourceRange().getBegin());
-			std::cout <<  "used in: " << fd->getDeclName().getAsString() << hoge << std::endl;
-		} else {
-			std::cout << "are-?" << std::endl;		}
-	}
+      auto hoge = this->sourceManager->getSpellingLineNumber(TULoc.getSourceRange().getBegin());
+      std::cout <<  "used in: " << fd->getDeclName().getAsString() << hoge << std::endl;
+    } else {
+      std::cout << "are-?" << std::endl;		}
+  }
 };
 
 
 
 int main(int argc, char** argv) {
-	clang::idx::Program Prog;
-	clang::idx::Indexer Idxer(Prog);
+  clang::idx::Program Prog;
+  clang::idx::Indexer Idxer(Prog);
 			
-	clang::CompilerInstance compiler;
+  clang::CompilerInstance compiler;
 
 
-	// f’fƒIƒvƒVƒ‡ƒ“‚ðƒZƒbƒgƒAƒbƒv‚·‚éB
-	clang::DiagnosticOptions diagOpts;
-	diagOpts.ErrorLimit = 30000;
-	diagOpts.IgnoreWarnings = 1;
-	diagOpts.TabStop = clang::DiagnosticOptions::DefaultTabStop;
-    diagOpts.MessageLength = 0;
-    diagOpts.NoRewriteMacros = 0;
-    diagOpts.Pedantic = 0;
-    diagOpts.PedanticErrors = 0;
-    diagOpts.ShowCarets = 1;
-    diagOpts.ShowColors = 0;
-    diagOpts.ShowOverloads = clang::Diagnostic::Ovl_All;
-    diagOpts.ShowColumn = 1;
-    diagOpts.ShowFixits = 1;
-    diagOpts.ShowLocation = 1;
-    diagOpts.ShowOptionNames = 0;
-    diagOpts.ShowCategories = 0;
-    diagOpts.ShowSourceRanges = 0;
-    diagOpts.ShowParseableFixits = 0;
-    diagOpts.VerifyDiagnostics = 0;
-    diagOpts.TemplateBacktraceLimit = clang::DiagnosticOptions::DefaultTemplateBacktraceLimit;
-	diagOpts.MacroBacktraceLimit = clang::DiagnosticOptions::DefaultMacroBacktraceLimit;
+  // è¨ºæ–­ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã‚’ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—ã™ã‚‹ã€‚
+  clang::DiagnosticOptions diagOpts;
+  diagOpts.ErrorLimit = 30000;
+  diagOpts.IgnoreWarnings = 1;
+  diagOpts.TabStop = clang::DiagnosticOptions::DefaultTabStop;
+  diagOpts.MessageLength = 0;
+  diagOpts.NoRewriteMacros = 0;
+  diagOpts.Pedantic = 0;
+  diagOpts.PedanticErrors = 0;
+  diagOpts.ShowCarets = 1;
+  diagOpts.ShowColors = 0;
+  diagOpts.ShowOverloads = clang::DiagnosticsEngine::Ovl_All;
+  diagOpts.ShowColumn = 1;
+  diagOpts.ShowFixits = 1;
+  diagOpts.ShowLocation = 1;
+  diagOpts.ShowOptionNames = 0;
+  diagOpts.ShowCategories = 0;
+  diagOpts.ShowSourceRanges = 0;
+  diagOpts.ShowParseableFixits = 0;
+  diagOpts.VerifyDiagnostics = 0;
+  diagOpts.TemplateBacktraceLimit = clang::DiagnosticOptions::DefaultTemplateBacktraceLimit;
+  diagOpts.MacroBacktraceLimit = clang::DiagnosticOptions::DefaultMacroBacktraceLimit;
 
-	clang::TextDiagnosticPrinter diagPrinter(llvm::outs(), diagOpts);
-	clang::DiagnosticClient* test = new clang::DiagnosticClient();
-	compiler.setDiagnostics(compiler.createDiagnostics(diagOpts,argc, argv,test).getPtr());
+  clang::TextDiagnosticPrinter diagPrinter(llvm::outs(), diagOpts);
+  auto test = new clang::IgnoringDiagConsumer();
+  auto diagnosticEngine = compiler.createDiagnostics(diagOpts,argc, argv, test );
+  compiler.setDiagnostics(diagnosticEngine.getPtr());
+  //compiler.setDiagnostics(compiler.createDiagnostics(diagOpts,argc, argv));
 	
-	auto& diag = compiler.getDiagnostics();
-	auto& invocation = compiler.getInvocation();
+  auto& diag = compiler.getDiagnostics();
+  auto& invocation = compiler.getInvocation();
 
-	// Œ¾ŒêƒIƒvƒVƒ‡ƒ“‚ðƒZƒbƒgƒAƒbƒv‚·‚éB
-	clang::LangOptions langOpts;
-	langOpts.BCPLComment = true;
-	langOpts.Bool   = true;
-	langOpts.Microsoft = true;
-	langOpts.CPlusPlus  = true;
-	langOpts.CPlusPlus0x = true;
-	langOpts.Exceptions  = true;
-	langOpts.CXXExceptions = true;
-	langOpts.MSBitfields = true;
-	langOpts.NeXTRuntime = false;
-	langOpts.NoBuiltin  = true;
-	langOpts.CatchUndefined = false;
-	langOpts.EmitAllDecls = true;
-	langOpts.MSCVersion  = _MSC_VER;
+  // è¨€èªžã‚ªãƒ—ã‚·ãƒ§ãƒ³ã‚’ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—ã™ã‚‹ã€‚
+  clang::LangOptions langOpts;
+  langOpts.BCPLComment = true;
+  langOpts.Bool   = true;
+  //langOpts.Microsoft = true;
+  langOpts.CPlusPlus  = true;
+  langOpts.CPlusPlus0x = true;
+  langOpts.Exceptions  = true;
+  langOpts.CXXExceptions = true;
+  langOpts.MSBitfields = true;
+  langOpts.NeXTRuntime = false;
+  langOpts.NoBuiltin  = true;
+  langOpts.CatchUndefined = false;
+  langOpts.EmitAllDecls = true;
+  //langOpts.MSCVersion  = _MSC_VER;
 		
-	invocation.setLangDefaults(langOpts,clang::IK_C);
+  invocation.setLangDefaults(langOpts,clang::IK_C);
 
-	auto depOpts = invocation.getDependencyOutputOpts();
-	depOpts.UsePhonyTargets = 1;
+  auto depOpts = invocation.getDependencyOutputOpts();
+  depOpts.UsePhonyTargets = 1;
 
-	clang::CompilerInvocation::CreateFromArgs(invocation, argv + 1, argv + argc, diag);
-	compiler.setTarget(clang::TargetInfo::CreateTargetInfo(diag, compiler.getTargetOpts()));
+  clang::CompilerInvocation::CreateFromArgs(invocation, argv + 1, argv + argc, diag);
+  compiler.setTarget(clang::TargetInfo::CreateTargetInfo(diag, compiler.getTargetOpts()));
 
-	compiler.createFileManager();
-	compiler.createSourceManager(compiler.getFileManager());
-	compiler.createPreprocessor();
-	compiler.createASTContext();
-	compiler.setASTConsumer(new MyASTConsumer());
-	compiler.createSema(false, nullptr);
+  compiler.createFileManager();
+  compiler.createSourceManager(compiler.getFileManager());
+  compiler.createPreprocessor();
+  compiler.createASTContext();
+  compiler.setASTConsumer(new MyASTConsumer());
+  compiler.createSema(clang::TU_Complete, nullptr);
 
-	auto& inputs = compiler.getFrontendOpts().Inputs;
-	if (inputs.size() > 0) {
-		compiler.InitializeSourceManager(inputs[0].second);
-		clang::ParseAST(
-			compiler.getPreprocessor(),
-			&compiler.getASTConsumer(),
-			compiler.getASTContext()
-			);
-	}
+  auto& inputs = compiler.getFrontendOpts().Inputs;
+  if (inputs.size() > 0) {
+    compiler.InitializeSourceManager(inputs[0].second);
+    clang::ParseAST(
+        compiler.getPreprocessor(),
+        &compiler.getASTConsumer(),
+        compiler.getASTContext()
+                    );
+  }
+  
+  clang::ASTUnit* ast = clang::ASTUnit::LoadFromCompilerInvocation(&invocation,
+                                                                   llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>(&diag));
+  ASTUnitTU *astTU = new ASTUnitTU(ast);
+  Idxer.IndexAST(astTU);
+  clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
 
-	clang::ASTUnit* ast = clang::ASTUnit::LoadFromCompilerInvocation(&invocation,
-		llvm::IntrusiveRefCntPtr<clang::Diagnostic>(&diag));
-	ASTUnitTU *astTU = new ASTUnitTU(ast);
-	Idxer.IndexAST(astTU);
-	clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
+  clang::idx::Entity Ent =
+      clang::idx::Entity::get("a", Idxer.getProgram());
+  std::cout << Ent.getPrintableName() << std::endl;
+  clang::FunctionDecl *FD;
+  auto decl = Ent.getDecl(ast->getASTContext());
 
-	clang::idx::Entity Ent =
-		clang::idx::Entity::get("a", Idxer.getProgram());
-	std::cout << Ent.getPrintableName() << std::endl;
-	clang::FunctionDecl *FD;
-	auto decl = Ent.getDecl(ast->getASTContext());
+  clang::idx::TranslationUnit *TU;
+  llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
 
-	clang::idx::TranslationUnit *TU;
-	llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
-
-	//if (!FD) {
-	//	std::cout << "not found" << std::endl;
-	//	return 0;
-	//}
-
-	analyzer->FindReferences(decl,Handler(&compiler.getSourceManager()));
-	getchar();
-	return 0;
+  //if (!FD) {
+  //	std::cout << "not found" << std::endl;
+  //	return 0;
+  //}
+  Handler handler(&compiler.getSourceManager());
+  analyzer->FindReferences(decl,handler);
+  return 0;
 }

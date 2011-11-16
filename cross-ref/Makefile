@@ -1,4 +1,4 @@
-LLVMHOME=/home/sakura/llvm/llvm/
+LLVMHOME=/Users/sakura/llvm/llvm/
 LLVMCONFIG=$(LLVMHOME)/Debug+Asserts/bin/llvm-config
 CXXFLAGS=-I$(LLVMHOME)/tools/clang/include \
 		 -fno-rtti \
@@ -41,9 +41,9 @@ all: cross-ref-dump
 clean:
 	rm -rf cross-ref-dump cross-ref-dump.o
 
-cross-ref-dump: cross-ref-dump.o
-	g++ $(LDFLAGS) -o cross-ref-dump cross-ref-dump.o $(LIBS)
+cross-ref-dump: main.o
+	clang++ $(LDFLAGS) -o main main.o $(LIBS)
 
 
-cross-ref-dump.o: cross-ref-dump.cc
+main.o: main.cpp
 
