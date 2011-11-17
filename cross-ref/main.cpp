@@ -150,31 +150,42 @@ class MyASTConsumer : public clang::ASTConsumer
 
   virtual void HandleTopLevelDecl( clang::DeclGroupRef d)
   {
-    static int count = 0;
-    clang::DeclGroupRef::iterator it;
-    for( it = d.begin(); it != d.end(); it++)
-    {
-      count++;
-      clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(*it);
-      if(!vd)
-      {
-        continue;
-      }
-      std::cout << vd << std::endl;
-      if( vd->isFileVarDecl() /*&& vd->hasExternalStorage()*/ )
-      {
-        std::cerr << "Read top-level variable decl: '";
-        std::cerr << vd->getDeclName().getAsString() ;
-        std::cerr << std::endl;
+    
+    for (auto& decl : d) {
+      if (auto const* fd = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
+        std::cout << "function:" << fd->getDeclName().getAsString() << std::endl;
       }
     }
+
+    for (auto& decl : d) {
+      if (auto const* vd = llvm::dyn_cast<clang::VarDecl>(decl)) {
+        std::cout << "variable:" << vd->getDeclName().getAsString() << std::endl;
+      }
+    }
+    // clang::DeclGroupRef::iterator it;
+    // for( it = d.begin(); it != d.end(); it++)
+    // {
+
+    //   clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(*it);
+    //   if(!vd)
+    //   {
+    //     continue;
+    //   } else {
+    //     std::cout << vd << std::endl;
+        
+    //     if( vd->isFileVarDecl() /*&& vd->hasExternalStorage()*/ )
+    //     {
+    //       std::cerr << "Read top-level variable decl: '";
+    //       std::cerr << vd->getDeclName().getAsString() ;
+    //       std::cerr << std::endl;
+    //     }
   }
 };
 
 
 class Handler : public clang::idx::TULocationHandler {
  public:
-  Handler(clang::SourceManager* _sourceManager) {
+  Handler(clang::SourceManager* _sourceManager = nullptr) {
     this->sourceManager = _sourceManager;
   }
  private:
@@ -188,18 +199,13 @@ class Handler : public clang::idx::TULocationHandler {
       a->dump();
 			
       auto hoge = this->sourceManager->getSpellingLineNumber(TULoc.getSourceRange().getBegin());
-      std::cout <<  "used in: " << fd->getDeclName().getAsString() << hoge << std::endl;
+      //std::cout <<  "used in: " << fd->getDeclName().getAsString() << hoge << std::endl;
     } else {
       std::cout << "are-?" << std::endl;		}
   }
 };
 
-
-
-int main(int argc, char** argv) {
-  clang::idx::Program Prog;
-  clang::idx::Indexer Idxer(Prog);
-			
+clang::ASTUnit* generateASTFromSource(int argc,const char* argv[]) {
   clang::CompilerInstance compiler;
 
 
@@ -209,7 +215,7 @@ int main(int argc, char** argv) {
   diagOpts.IgnoreWarnings = 1;
   diagOpts.TabStop = clang::DiagnosticOptions::DefaultTabStop;
   diagOpts.MessageLength = 0;
-  diagOpts.NoRewriteMacros = 0;
+  diagOpts.NoRewriteMacros = 1;
   diagOpts.Pedantic = 0;
   diagOpts.PedanticErrors = 0;
   diagOpts.ShowCarets = 1;
@@ -276,26 +282,43 @@ int main(int argc, char** argv) {
                     );
   }
   
-  clang::ASTUnit* ast = clang::ASTUnit::LoadFromCompilerInvocation(&invocation,
-                                                                   llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>(&diag));
-  ASTUnitTU *astTU = new ASTUnitTU(ast);
-  Idxer.IndexAST(astTU);
-  clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
+  return  clang::ASTUnit::LoadFromCompilerInvocation(&invocation,
+                                                     llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>(&diag));
+}
 
-  clang::idx::Entity Ent =
-      clang::idx::Entity::get("a", Idxer.getProgram());
-  std::cout << Ent.getPrintableName() << std::endl;
-  clang::FunctionDecl *FD;
-  auto decl = Ent.getDecl(ast->getASTContext());
 
-  clang::idx::TranslationUnit *TU;
-  llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
+int main(int argc, char** argv) {
+  clang::idx::Program Prog;
+  clang::idx::Indexer Idxer(Prog);
+  std::cout << "parse start: argc=" << argc  << std::endl;
+  clang::ASTUnit* ast;
 
-  //if (!FD) {
-  //	std::cout << "not found" << std::endl;
-  //	return 0;
-  //}
-  Handler handler(&compiler.getSourceManager());
-  analyzer->FindReferences(decl,handler);
+  for (int i = 1; i < argc ; i++) {
+    std::cout << argv[i] << std::endl;
+    const char* inputs[] = {argv[0],argv[i]};                            
+    ast = generateASTFromSource(2,inputs);
+    ASTUnitTU *astTU = new ASTUnitTU(ast);
+    Idxer.IndexAST(astTU);
+  }
+
+  // clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
+
+  // clang::idx::Entity Ent =
+  //     clang::idx::Entity::get("COMPUTE", Idxer.getProgram());
+  // std::cout << Ent.getPrintableName() << std::endl;
+  // clang::FunctionDecl *FD;
+  // auto decl = Ent.getDecl(ast->getASTContext());
+
+  // clang::idx::TranslationUnit *TU;
+  // llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
+
+  // if (!FD) {
+  // 	std::cout << "not found" << std::endl;
+  // 	return 0;
+  // }
+  
+  // Handler* handler = new Handler();// (// &compiler.getSourceManager()
+  //                 // );
+  // analyzer->FindReferences(decl,*handler);
   return 0;
 }
