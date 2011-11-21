@@ -5,6 +5,7 @@
 // typedef int TargetData;
 
 
+  
 #define COMPUTE(r) r*r*3.14 
 
 static int d = 10;
@@ -31,10 +32,12 @@ int main() {
   c = 10;
   a = 0;
   func();
+  unknown();
   int hoge = COMPUTE(10);
   
 };
-
+void mogeho() {
+  func();
 //void *SimplifyAndInst(unsigned int ,int *, int *, const int *,const int *, unsigned int);
 //Value *SimplifyBinOp(unsigned, Value *, Value *, const TargetData *,const DominatorTree *, unsigned);
 //Value *SimplifyCmpInst(unsigned, Value *, Value *, const TargetData *,const DominatorTree *, unsigned);

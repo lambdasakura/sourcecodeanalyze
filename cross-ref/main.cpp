@@ -253,9 +253,9 @@ clang::ASTUnit* generateASTUnitFromSource(const char** argv) {
 
 	// setup language options
 	clang::LangOptions langOpts;
-	langOpts.NoInline = 1;
+	langOpts.NoInline = 0;
 	//langOpts.BCPLComment = true;
-	//langOpts.Bool   = true;
+	langOpts.Bool   = true;
 	//langOpts.MicrosoftExt = true;
 	//langOpts.MicrosoftMode = true;
 	langOpts.CPlusPlus  = true;
@@ -292,15 +292,15 @@ clang::ASTUnit* generateASTUnitFromSource(const char** argv) {
 	std::vector<std::string>::iterator itr;
 	for(itr=lines.begin();itr!=lines.end();++itr) {
 
-          compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
-                                                 clang::frontend::Quoted, true, false, false);
+          //compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
+          //clang::frontend::Quoted, true, false, false);
           // compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
           //                                        clang::frontend::Angled, true, false, false);
           std::cout <<  "Include:"  << itr->c_str() << std::endl;
         }
 	compiler.createPreprocessor();
         compiler.createASTContext();
-	compiler.setASTConsumer(new clang::ASTConsumer());
+	compiler.setASTConsumer(new MyASTConsumer());
 
 	compiler.createSema(clang::TU_Complete, nullptr);
         std::cout << "parse start" << std::endl;

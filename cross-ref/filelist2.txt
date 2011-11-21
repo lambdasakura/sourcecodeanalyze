@@ -1,0 +1,2 @@
+/Users/sakura/lambda_sakura/sourcecodeanalyze/samples/sample2/hello.cc
+/Users/sakura/lambda_sakura/sourcecodeanalyze/samples/sample2/hello2.cc
