@@ -114,235 +114,273 @@
 #include <fstream>
 #include <time.h>
 
+
+static llvm::cl::opt<std::string>
+	IncludeFilename("i", llvm::cl::desc("Override output filename"),
+	llvm::cl::value_desc("include directory list"));
+
+static llvm::cl::opt<std::string>
+	InputFilename("s", llvm::cl::desc("Override output filename"),
+	llvm::cl::value_desc("include directory list"));
+
+
 class ASTUnitTU : public clang::idx::TranslationUnit {
-  clang::ASTUnit *AST;
-  clang::idx::DeclReferenceMap DeclRefMap;
-  clang::idx::SelectorMap SelMap;
+	clang::ASTUnit *AST;
+	clang::idx::DeclReferenceMap DeclRefMap;
+	clang::idx::SelectorMap SelMap;
 
- public:
-  ASTUnitTU(clang::ASTUnit *ast) 
-      : AST(ast), DeclRefMap(AST->getASTContext()), SelMap(AST->getASTContext()) {
-  }
+public:
+	ASTUnitTU(clang::ASTUnit *ast) 
+		: AST(ast), DeclRefMap(AST->getASTContext()), SelMap(AST->getASTContext()) {
+	}
 
-  virtual clang::ASTContext &getASTContext() {
-    return AST->getASTContext();
-  }
+	virtual clang::ASTContext &getASTContext() {
+		return AST->getASTContext();
+	}
 
-  virtual clang::Preprocessor &getPreprocessor() {
-    return AST->getPreprocessor();
-  }
+	virtual clang::Preprocessor &getPreprocessor() {
+		return AST->getPreprocessor();
+	}
 
-  virtual clang::DiagnosticsEngine &getDiagnostic() {
-    return AST->getDiagnostics();
-  }
+	virtual clang::DiagnosticsEngine &getDiagnostic() {
+		return AST->getDiagnostics();
+	}
 
-  virtual clang::DeclReferenceMap &getDeclReferenceMap() {
-    return DeclRefMap;
-  }
+	virtual clang::DeclReferenceMap &getDeclReferenceMap() {
+		return DeclRefMap;
+	}
 
-  virtual clang::SelectorMap &getSelectorMap() {
-    return SelMap;
-  }
+	virtual clang::SelectorMap &getSelectorMap() {
+		return SelMap;
+	}
 };
 
 
 class MyASTConsumer : public clang::ASTConsumer
 {
- public:
-  MyASTConsumer() : clang::ASTConsumer() { }
-  virtual ~MyASTConsumer() { }
+public:
+	MyASTConsumer() : clang::ASTConsumer() { }
+	virtual ~MyASTConsumer() { }
 
-  virtual void HandleTopLevelDecl( clang::DeclGroupRef d)
-  {
-    
-    for (auto& decl : d) {
-      if (auto const* fd = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
-        std::cout << "function:" << fd->getDeclName().getAsString() << std::endl;
-      }
-    }
+	virtual bool HandleTopLevelDecl( clang::DeclGroupRef d)
+	{
+		
+		for (auto i =  d.begin();i != d.end();i++) {
+			std::cout << "hello" <<std::endl;
+			if (auto  fd = llvm::dyn_cast<clang::FunctionDecl>(*i)) {
+				std::cout << "function: " << fd->getDeclName().getAsString();
+				std::cout << " (isGlobl?:" << fd->isGlobal();
+				std::cout << " isStatic?:" << !(fd->isGlobal());
+				std::cout << " isInline?:" << fd->isInlined() << ")";
+				std::cout << std::endl;
 
-    for (auto& decl : d) {
-      if (auto const* vd = llvm::dyn_cast<clang::VarDecl>(decl)) {
-        std::cout << "variable:" << vd->getDeclName().getAsString() << std::endl;
-      }
-    }
-    // clang::DeclGroupRef::iterator it;
-    // for( it = d.begin(); it != d.end(); it++)
-    // {
+			}
+		}
 
-    //   clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(*it);
-    //   if(!vd)
-    //   {
-    //     continue;
-    //   } else {
-    //     std::cout << vd << std::endl;
-        
-    //     if( vd->isFileVarDecl() /*&& vd->hasExternalStorage()*/ )
-    //     {
-    //       std::cerr << "Read top-level variable decl: '";
-    //       std::cerr << vd->getDeclName().getAsString() ;
-    //       std::cerr << std::endl;
-    //     }
-  }
+		//for (auto i =  d.begin();i != d.end();i++) {
+		//	if (auto  vd = llvm::dyn_cast<clang::VarDecl>(*i)) {
+		//		std::cout << "variable: " << vd->getDeclName().getAsString();
+		//		std::cout << " (isGlobl?:" << vd->hasGlobalStorage();
+		//		std::cout << " isStatic?:" << !(vd->isExternC());
+		//		std::cout << " isExtern?:" << vd->hasExternalStorage();
+		//		std::cout << ")" << std::endl;
+		//	}
+		//}
+		return true;
+	}
 };
 
 
 class Handler : public clang::idx::TULocationHandler {
- public:
-  Handler(clang::SourceManager* _sourceManager) {
-    this->sourceManager = _sourceManager;
-  }
- private:
-  clang::SourceManager* sourceManager;
-  void Handle(clang::TULocation TULoc)  {
-    auto a = TULoc.dyn_AsStmt();
-    auto hogehoge = TULoc.getParentDecl();
-    std::cout << hogehoge->getDeclKindName();
-    clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(hogehoge);
-    if(fd) {
-      a->dump();
-      
-      auto hoge = this->sourceManager->getSpellingLineNumber(TULoc.getSourceRange().getBegin());
-      std::cout <<  "used in: " << fd->getDeclName().getAsString() << hoge << std::endl;
-    } else {
-      std::cout << "are-?" << std::endl;		}
-  }
+public:
+	Handler(clang::SourceManager* _sourceManager) {
+		this->sourceManager = _sourceManager;
+	}
+private:
+	clang::SourceManager* sourceManager;
+	void Handle(clang::TULocation TULoc)  {
+		auto a = TULoc.dyn_AsStmt();
+		auto hogehoge = TULoc.getParentDecl();
+		std::cout << hogehoge->getDeclKindName();
+		clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(hogehoge);
+		if(fd) {
+			a->dump();
+
+			auto hoge = this->sourceManager->getSpellingLineNumber(TULoc.getSourceRange().getBegin());
+			std::cout <<  "used in: " << fd->getDeclName().getAsString() << hoge << std::endl;
+		} else {
+			std::cout << "are-?" << std::endl;		}
+	}
 };
 
 
 // generate ASTUnit from source file.
 clang::ASTUnit* generateASTUnitFromSource(const char** argv) {
-  clang::CompilerInstance compiler;
+	clang::CompilerInstance compiler;
 
-  // Setup Diagnostic Options
-  clang::DiagnosticOptions diagOpts;
-  diagOpts.ErrorLimit = 30000;
-  diagOpts.IgnoreWarnings = 1;
-  diagOpts.TabStop = clang::DiagnosticOptions::DefaultTabStop;
-  diagOpts.MessageLength = 0;
-  diagOpts.NoRewriteMacros = 0;
-  diagOpts.Pedantic = 0;
-  diagOpts.PedanticErrors = 0;
-  diagOpts.ShowCarets = 1;
-  diagOpts.ShowColors = 0;
-  diagOpts.ShowOverloads = clang::DiagnosticsEngine::Ovl_All;
-  diagOpts.ShowColumn = 1;
-  diagOpts.ShowFixits = 1;
-  diagOpts.ShowLocation = 1;
-  diagOpts.ShowOptionNames = 0;
-  diagOpts.ShowCategories = 0;
-  diagOpts.ShowSourceRanges = 0;
-  diagOpts.ShowParseableFixits = 0;
-  diagOpts.VerifyDiagnostics = 0;
-  diagOpts.TemplateBacktraceLimit = clang::DiagnosticOptions::DefaultTemplateBacktraceLimit;
-  diagOpts.MacroBacktraceLimit = clang::DiagnosticOptions::DefaultMacroBacktraceLimit;
+	// Setup Diagnostic Options
+	clang::DiagnosticOptions diagOpts;
+	diagOpts.ErrorLimit = 30000;
+	diagOpts.IgnoreWarnings = 1;
+	diagOpts.TabStop = clang::DiagnosticOptions::DefaultTabStop;
+	diagOpts.MessageLength = 0;
+	diagOpts.NoRewriteMacros = 1;
+	diagOpts.Pedantic = 0;
+	diagOpts.PedanticErrors = 0;
+	diagOpts.ShowCarets = 1;
+	diagOpts.ShowColors = 0;
+	diagOpts.ShowOverloads = clang::DiagnosticsEngine::Ovl_All;
+	diagOpts.ShowColumn = 1;
+	diagOpts.ShowFixits = 1;
+	diagOpts.ShowLocation = 1;
+	diagOpts.ShowOptionNames = 0;
+	diagOpts.ShowCategories = 0;
+	diagOpts.ShowSourceRanges = 0;
+	diagOpts.ShowParseableFixits = 0;
+	diagOpts.VerifyDiagnostics = 0;
+	diagOpts.TemplateBacktraceLimit = clang::DiagnosticOptions::DefaultTemplateBacktraceLimit;
+	diagOpts.MacroBacktraceLimit = clang::DiagnosticOptions::DefaultMacroBacktraceLimit;
 
-  clang::TextDiagnosticPrinter diagPrinter(llvm::outs(), diagOpts);
-  auto test = new clang::IgnoringDiagConsumer();
-  auto diagnosticEngine = compiler.createDiagnostics(diagOpts,2,argv,test);
-  compiler.setDiagnostics(diagnosticEngine.getPtr());
-  //compiler.setDiagnostics(compiler.createDiagnostics(diagOpts,argc, argv));
+	auto ignoreConsumer = new clang::IgnoringDiagConsumer();
+	auto diagnosticEngine = compiler.createDiagnostics(diagOpts,2,argv,ignoreConsumer);
 
-  auto& diag = compiler.getDiagnostics();
-  auto& invocation = compiler.getInvocation();
+	compiler.setDiagnostics(diagnosticEngine.getPtr());
+	//compiler.setDiagnostics(compiler.createDiagnostics(diagOpts,argc, argv));
 
-  clang::LangOptions langOpts;
-  langOpts.BCPLComment = true;
-  langOpts.Bool   = true;
-  //langOpts.Microsoft = true;
-  langOpts.CPlusPlus  = true;
-  langOpts.CPlusPlus0x = true;
-  langOpts.Exceptions  = true;
-  langOpts.CXXExceptions = true;
-  langOpts.MSBitfields = true;
-  langOpts.NeXTRuntime = false;
-  langOpts.NoBuiltin  = true;
-  langOpts.CatchUndefined = false;
-  langOpts.EmitAllDecls = true;
-  //langOpts.MSCVersion  = _MSC_VER;
+	auto& diag = compiler.getDiagnostics();
+	auto& invocation = compiler.getInvocation();
 
-  invocation.setLangDefaults(langOpts,clang::IK_C);
+	// setup language options
+	clang::LangOptions langOpts;
+	langOpts.NoInline = 1;
+	//langOpts.BCPLComment = true;
+	//langOpts.Bool   = true;
+	langOpts.MicrosoftExt = true;
+	langOpts.MicrosoftMode = true;
+	//langOpts.CPlusPlus  = true;
+	//langOpts.CPlusPlus0x = true;
+	//langOpts.Exceptions  = true;
+	//langOpts.CXXExceptions = true;
+	//langOpts.MSBitfields = true;
+	//langOpts.NeXTRuntime = false;
+	//langOpts.NoBuiltin  = true;
+	//langOpts.CatchUndefined = false;
+	//langOpts.EmitAllDecls = true;
+	langOpts.MSCVersion  = _MSC_VER;
 
-  auto depOpts = invocation.getDependencyOutputOpts();
-  depOpts.UsePhonyTargets = 1;
+	llvm::Triple triple;
+	triple.setArch(llvm::Triple::x86);
+	triple.setVendor(llvm::Triple::PC);
+	triple.setOS(llvm::Triple::Win32);
+	clang::TargetOptions targetOpts;
 
-  clang::CompilerInvocation::CreateFromArgs(invocation, argv + 1, argv + 2, diag);
-  compiler.setTarget(clang::TargetInfo::CreateTargetInfo(diag, compiler.getTargetOpts()));
+	invocation.setLangDefaults(langOpts,clang::IK_C);
 
-  compiler.createFileManager();
-  compiler.createSourceManager(compiler.getFileManager());
-  compiler.createPreprocessor();
-  compiler.createASTContext();
-  compiler.setASTConsumer(new MyASTConsumer());
-  compiler.createSema(clang::TU_Complete, nullptr);
+	auto depOpts = invocation.getDependencyOutputOpts();
+	depOpts.UsePhonyTargets = 1;
 
-  // To Parse C Source file from ARG
-  auto& inputs = compiler.getFrontendOpts().Inputs;
-  if (inputs.size() > 0) {
-    compiler.InitializeSourceManager(inputs[0].second);
-    clang::ParseAST(
-        compiler.getPreprocessor(),
-        &compiler.getASTConsumer(),
-        compiler.getASTContext()
-                    );
-  }
+	clang::CompilerInvocation::CreateFromArgs(invocation, argv + 1, argv + 2, diag);
 
-  return clang::ASTUnit::LoadFromCompilerInvocation(&invocation,
-                                                    llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>(&diag));
+	compiler.setTarget(clang::TargetInfo::CreateTargetInfo(diag, compiler.getTargetOpts()));
+	compiler.createFileManager();
+	compiler.createSourceManager(compiler.getFileManager());
+
+
+
+	//std::ifstream inf(IncludeFilename, std::ios::in);
+	//std::vector<std::string> lines;
+	//std::string line;
+	//while(getline(inf, line)) lines.push_back(line);
+	//inf.close();
+
+	//std::vector<std::string>::iterator itr;
+	//for(itr=lines.begin();itr!=lines.end();++itr) {
+	//	std::cout << itr->c_str() << "header read." << std::endl;
+	//	compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
+	//		clang::frontend::Quoted, true, false, false);
+	//	compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
+	//		clang::frontend::Angled, true, false, false);}
+
+	compiler.createPreprocessor();
+	
+	compiler.createASTContext();
+	compiler.setASTConsumer(new MyASTConsumer());
+
+	compiler.createSema(clang::TU_Complete, nullptr);
+
+	// To Parse C Source file from ARG
+	auto& inputs = compiler.getFrontendOpts().Inputs;
+	if (inputs.size() > 0) {
+		compiler.InitializeSourceManager(inputs[0].second);
+		clang::ParseAST(
+			compiler.getPreprocessor(),
+			&compiler.getASTConsumer(),
+			compiler.getASTContext()
+			);
+	}
+
+	return clang::ASTUnit::LoadFromCompilerInvocation(&invocation,
+		llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>(&diag));
 }
 
 int main(int argc, char** argv) {
 
-  clock_t start,end;
-  start = clock();
+	llvm::cl::ParseCommandLineOptions(argc, argv, "");
 
-  // generate cross reference info
-  clang::idx::Program Prog;
-  clang::idx::Indexer Idxer(Prog);
+	clock_t start,end;
+	start = clock();
 
 
-  std::ifstream inf(argv[1], std::ios::in);
-  std::cout << argv[1] << "read." <<std::endl;
-  std::vector<std::string> lines;
-  std::string line;
-
-  while(getline(inf, line)) lines.push_back(line);
-
-  inf.close();
-
-  std::vector<std::string>::iterator itr;
-  for(itr=lines.begin();itr!=lines.end();++itr) {
-    std::cout << itr->c_str() << std::endl;
-    const char* inputs[] = {argv[0],itr->c_str()};
-    auto ast = generateASTUnitFromSource(inputs);
-    //auto astTU = new ASTUnitTU(ast);
-    //Idxer.IndexAST(astTU);
-  }
+	// generate cross reference info
+	clang::idx::Program Prog;
+	clang::idx::Indexer Idxer(Prog);
 
 
+	std::ifstream inf(InputFilename, std::ios::in);
+	std::cout << InputFilename << " read." <<std::endl;
+	std::vector<std::string> lines;
+	std::string line;
 
-  // get Entity  
-  //clang::idx::Entity Ent =
-  //	clang::idx::Entity::get("a", Idxer.getProgram());
-  //std::cout << Ent.getPrintableName() << std::endl;
+	while(getline(inf, line)) lines.push_back(line);
 
-  //clang::FunctionDecl *FD;
-  //auto decl = Ent.getDecl(ast->getASTContext());
+	inf.close();
+	std::vector<clang::ASTUnit*> astList;
+	std::vector<ASTUnitTU*> astTUList;
+	std::vector<std::string>::iterator itr;
+	for(itr=lines.begin();itr!=lines.end();++itr) {
+		std::cout << itr->c_str() << std::endl;
+		const char* inputs[] = {argv[0],itr->c_str()};
+		auto ast = generateASTUnitFromSource(inputs);
+//		astList.push_back(ast);
+//		ASTUnitTU* astTU = new ASTUnitTU(ast);
+//		astTUList.push_back(astTU);
+//		Idxer.IndexAST(astTU);
+	}
 
-  //clang::idx::TranslationUnit *TU;
-  //llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
 
-  ////if (!FD) {
-  ////	std::cout << "not found" << std::endl;
-  ////	return 0;
-  ////}
-  ////Handler handler(&compiler.getSourceManager());
 
-  //clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
-  ////analyzer->FindReferences(decl,handler);
+	// get Entity  
+	//clang::idx::Entity Ent =
+	//	clang::idx::Entity::get("a", Idxer.getProgram());
+	//std::cout << Ent.getPrintableName() << std::endl;
 
-  end = clock();
-  printf("%.2f秒かかりました\n",(double)(end-start)/CLOCKS_PER_SEC);
+	//clang::FunctionDecl *FD;
+	//auto decl = Ent.getDecl(ast->getASTContext());
 
-  return 0;
+	//clang::idx::TranslationUnit *TU;
+	//llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
+
+	////if (!FD) {
+	////	std::cout << "not found" << std::endl;
+	////	return 0;
+	////}
+	////Handler handler(&compiler.getSourceManager());
+
+	//clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
+	////analyzer->FindReferences(decl,handler);
+
+	end = clock();
+	printf("%.2f second spend.\n",(double)(end-start)/CLOCKS_PER_SEC);
+
+	return 0;
 }
