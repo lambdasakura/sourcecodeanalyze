@@ -1,13 +1,14 @@
+CXX=clang++ -std=c++0x
 LLVMHOME=/Users/sakura/llvm/llvm/
 LLVMCONFIG=$(LLVMHOME)/Debug+Asserts/bin/llvm-config
-CXXFLAGS=-I$(LLVMHOME)/tools/clang/include \
+CXXFLAGS=-O2 -I$(LLVMHOME)/tools/clang/include \
 		 -fno-rtti \
 		 `$(LLVMCONFIG) --cxxflags`
 
 # clangParse required starting from tut04
 # clangAST and clangSema required starting from tut06
 # clangRewrite required in tut09
-LDFLAGS= `$(LLVMCONFIG) --ldflags --libs`
+LDFLAGS= -O2 `$(LLVMCONFIG) --ldflags --libs`
 LIBS= -lclangAnalysis \
       -lclangStaticAnalyzerCore \
       -lclangARCMigrate \
@@ -36,12 +37,12 @@ LIBS= -lclangAnalysis \
       -lLLVMBitWriter -lLLVMBitReader -lLLVMCodeGen -lLLVMAnalysis \
       -lLLVMTarget
 
-all: cross-ref-dump
+all: main
 
 clean:
-	rm -rf cross-ref-dump cross-ref-dump.o
+	rm -rf main main.o
 
-cross-ref-dump: main.o
+main: main.o
 	clang++ $(LDFLAGS) -o main main.o $(LIBS)
 
 
