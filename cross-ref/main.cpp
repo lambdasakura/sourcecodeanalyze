@@ -194,8 +194,9 @@ public:
 
 class Handler : public clang::idx::TULocationHandler {
 public:
-	Handler(clang::SourceManager* _sourceManager) {
-		this->sourceManager = _sourceManager;
+	Handler(// clang::SourceManager* _sourceManager
+                ) {
+          //this->sourceManager = _sourceManager;
 	}
 private:
 	clang::SourceManager* sourceManager;
@@ -206,8 +207,8 @@ private:
 		clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(hogehoge);
 		if(fd) {
 			a->dump();
-
-			auto hoge = this->sourceManager->getSpellingLineNumber(TULoc.getSourceRange().getBegin());
+                        auto& manager = fd->getASTContext().getSourceManager();
+			auto hoge = manager.getSpellingLineNumber(TULoc.getSourceRange().getBegin());
 			std::cout <<  "used in: " << fd->getDeclName().getAsString() << hoge << std::endl;
 		} else {
 			std::cout << "are-?" << std::endl;		}
@@ -221,11 +222,11 @@ clang::ASTUnit* generateASTUnitFromSource(const char** argv) {
 
 	// Setup Diagnostic Options
 	clang::DiagnosticOptions diagOpts;
-	diagOpts.ErrorLimit = 30000;
+	diagOpts.ErrorLimit = 60000;
 	diagOpts.IgnoreWarnings = 1;
 	diagOpts.TabStop = clang::DiagnosticOptions::DefaultTabStop;
 	diagOpts.MessageLength = 0;
-	diagOpts.NoRewriteMacros = 1;
+	diagOpts.NoRewriteMacros = 0;
 	diagOpts.Pedantic = 0;
 	diagOpts.PedanticErrors = 0;
 	diagOpts.ShowCarets = 1;
@@ -265,7 +266,7 @@ clang::ASTUnit* generateASTUnitFromSource(const char** argv) {
 	langOpts.MSBitfields = true;
 	langOpts.NeXTRuntime = false;
 	langOpts.NoBuiltin  = true;
-	langOpts.CatchUndefined = false;
+	langOpts.CatchUndefined = true;
 	langOpts.EmitAllDecls = true;
 	//langOpts.MSCVersion  = _MSC_VER;
 	invocation.setLangDefaults(langOpts,clang::IK_C);
@@ -292,10 +293,10 @@ clang::ASTUnit* generateASTUnitFromSource(const char** argv) {
 	std::vector<std::string>::iterator itr;
 	for(itr=lines.begin();itr!=lines.end();++itr) {
 
-          //compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
-          //clang::frontend::Quoted, true, false, false);
-          // compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
-          //                                        clang::frontend::Angled, true, false, false);
+          compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
+          clang::frontend::Quoted, true, false, false);
+          compiler.getHeaderSearchOpts().AddPath(itr->c_str(),
+                                                 clang::frontend::Angled, true, false, false);
           std::cout <<  "Include:"  << itr->c_str() << std::endl;
         }
 	compiler.createPreprocessor();
@@ -363,26 +364,29 @@ int main(int argc, char** argv) {
     std::cout <<  "... OK!" << std::endl;
   }
   
-  
+  clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
+
   // get Entity  
-  //clang::idx::Entity Ent =
-  //	clang::idx::Entity::get("a", Idxer.getProgram());
-  //std::cout << Ent.getPrintableName() << std::endl;
+  clang::idx::Entity Ent =
+  	clang::idx::Entity::get("a", Idxer.getProgram());
+  std::cout << Ent.getPrintableName() << std::endl;
   
   //clang::FunctionDecl *FD;
-  //auto decl = Ent.getDecl(ast->getASTContext());
+  for (unsigned i = 0, e = astList.size(); i != e; ++i) {
+    auto decl = Ent.getDecl(astList[i]->getASTContext());
+    if (decl) {
+      std::cout << "found!" << std::endl;
+      Handler* handler = new Handler();
+      analyzer->FindReferences(decl,*handler);
+      return 0;
+    }
+  }
   
   //clang::idx::TranslationUnit *TU;
   //llvm::tie(FD, TU) = Idxer.getDefinitionFor(Ent);
   
-  ////if (!FD) {
-  ////	std::cout << "not found" << std::endl;
-  ////	return 0;
-  ////}
-  ////Handler handler(&compiler.getSourceManager());
   
-  //clang::idx::Analyzer* analyzer = new clang::idx::Analyzer(Idxer.getProgram(),Idxer);
-  ////analyzer->FindReferences(decl,handler);
+  
   
   end = clock();
   printf("%.2f second spend.\n",(double)(end-start)/CLOCKS_PER_SEC);
